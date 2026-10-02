@@ -27,7 +27,7 @@ export class OccurrencesService {
 
   async list(from: string, to: string): Promise<TaskOccurrence[]> {
     this.validateRange(from, to);
-    const allTasks = await this.tasks.find();
+    const allTasks = await this.tasks.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
     const candidates: Array<{ task: Task; date: string }> = [];
     for (const task of allTasks) {
       for (const date of expandTaskDates(task, from, to)) candidates.push({ task, date });
@@ -55,7 +55,7 @@ export class OccurrencesService {
         done: doneKeys.has(`${task.id}:${date}`),
         overdue: date < today && !doneKeys.has(`${task.id}:${date}`),
       }))
-      .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+      .sort((a, b) => a.date.localeCompare(b.date) || Number(a.done) - Number(b.done));
   }
 
   async setCompletion(taskId: string, date: string, done: boolean): Promise<void> {

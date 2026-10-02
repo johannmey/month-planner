@@ -336,7 +336,25 @@ h1 {
 
 .calendar-task {
     pointer-events: auto;
-    cursor: pointer;
+    cursor: grab;
+}
+
+.calendar-task:active, .occurrence-card[draggable="true"]:active {
+    cursor: grabbing;
+}
+
+.calendar-task.is-dragging, .occurrence-card.is-dragging {
+    opacity: .45;
+}
+
+.task-drag-handle {
+    flex: 0 0 8px;
+    width: 8px;
+    overflow: hidden;
+    color: #aab2aa;
+    font-size: 12px;
+    line-height: 1;
+    cursor: grab;
 }
 
 .calendar-task-check {
@@ -531,6 +549,7 @@ h1 {
     border: 1px solid #e9ebe6;
     border-radius: 8px;
     background: #fff;
+    cursor: grab;
 }
 
 .overdue-card {

@@ -93,4 +93,54 @@ describe('Planner API', () => {
     const remainingTasks = await fetch(`${baseUrl}/api/tasks`).then((response) => response.json()) as Array<{ id: string }>;
     expect(remainingTasks.some(({ id }) => id === task.id)).toBe(false);
   }, 20_000);
+
+  it('persists task order and returns occurrences in that order', async () => {
+    const date = localDateKey();
+    const taskIds: string[] = [];
+    for (const title of ['First task', 'Second task', 'Third task']) {
+      const response = await fetch(`${baseUrl}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, recurrenceType: 'once', startDate: date }),
+      });
+      expect(response.status).toBe(201);
+      const task = await response.json() as { id: string };
+      taskIds.push(task.id);
+    }
+
+    const reorderedIds = [...taskIds].reverse();
+    const reorderResponse = await fetch(`${baseUrl}/api/tasks/order`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskIds: reorderedIds }),
+    });
+    expect(reorderResponse.status).toBe(200);
+
+    const tasks = await fetch(`${baseUrl}/api/tasks`).then((response) => response.json()) as Array<{
+      id: string;
+      sortOrder: number;
+    }>;
+    expect(tasks.map(({ id }) => id)).toEqual(reorderedIds);
+    expect(tasks.map(({ sortOrder }) => sortOrder)).toEqual([0, 1, 2]);
+
+    const occurrences = await fetch(`${baseUrl}/api/occurrences?from=${date}&to=${date}`)
+      .then((response) => response.json()) as Array<{ taskId: string }>;
+    expect(occurrences.map(({ taskId }) => taskId)).toEqual(reorderedIds);
+
+    await fetch(`${baseUrl}/api/tasks/${reorderedIds[0]}/completions/${date}`, { method: 'PUT' });
+    const sortedOccurrences = await fetch(`${baseUrl}/api/occurrences?from=${date}&to=${date}`)
+      .then((response) => response.json()) as Array<{ taskId: string; done: boolean }>;
+    expect(sortedOccurrences.map(({ taskId }) => taskId)).toEqual([
+      ...reorderedIds.slice(1),
+      reorderedIds[0],
+    ]);
+    expect(sortedOccurrences.at(-1)?.done).toBe(true);
+
+    const incompleteOrder = await fetch(`${baseUrl}/api/tasks/order`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskIds: reorderedIds.slice(1) }),
+    });
+    expect(incompleteOrder.status).toBe(400);
+  }, 20_000);
 });

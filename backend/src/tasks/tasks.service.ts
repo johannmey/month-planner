@@ -10,11 +10,16 @@ export class TasksService {
   constructor(@InjectRepository(Task) private readonly tasks: Repository<Task>) {}
 
   findAll(): Promise<Task[]> {
-    return this.tasks.find({ order: { createdAt: 'ASC' } });
+    return this.tasks.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
   }
 
   async create(dto: CreateTaskDto): Promise<Task> {
     this.validateTaskDates(dto);
+    const [lastTask] = await this.tasks.find({
+      select: { sortOrder: true },
+      order: { sortOrder: 'DESC', createdAt: 'DESC' },
+      take: 1,
+    });
     return this.tasks.save(this.tasks.create({
       ...dto,
       notes: dto.notes?.trim() || null,
@@ -22,7 +27,30 @@ export class TasksService {
       dayOfMonth: dto.dayOfMonth ?? null,
       endDate: dto.endDate ?? null,
       color: dto.color ?? null,
+      sortOrder: (lastTask?.sortOrder ?? -1) + 1,
     }));
+  }
+
+  async reorder(taskIds: string[]): Promise<Task[]> {
+    return this.tasks.manager.transaction(async (manager) => {
+      const tasks = await manager.getRepository(Task).find();
+      const tasksById = new Map(tasks.map((task) => [task.id, task]));
+      if (
+        taskIds.length !== tasks.length
+        || new Set(taskIds).size !== tasks.length
+        || taskIds.some((id) => !tasksById.has(id))
+      ) {
+        throw new BadRequestException('Task order must include every task exactly once');
+      }
+
+      const orderedTasks = taskIds.map((id, sortOrder) => {
+        const task = tasksById.get(id);
+        if (!task) throw new BadRequestException('Task order contains an unknown task');
+        task.sortOrder = sortOrder;
+        return task;
+      });
+      return manager.getRepository(Task).save(orderedTasks);
+    });
   }
 
   async update(id: string, dto: UpdateTaskDto): Promise<Task> {

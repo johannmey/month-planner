@@ -24,6 +24,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editing, setEditing] = useState<Task | null>(null);
   const [actionError, setActionError] = useState('');
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   useEffect(() => {
     if (!selectedDate) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -107,6 +108,14 @@ function App() {
     },
     onError: (error) => setActionError(error.message),
   });
+  const reorderMutation = useMutation({
+    mutationFn: api.reorderTasks,
+    onSuccess: async () => {
+      setActionError('');
+      await updateQueries();
+    },
+    onError: (error) => setActionError(error.message),
+  });
 
   function saveTask(input: TaskInput, taskId?: string) {
     setActionError('');
@@ -115,6 +124,41 @@ function App() {
 
   const tasks = tasksQuery.data ?? [];
   const isLoading = tasksQuery.isPending || occurrencesQuery.isPending;
+
+  function reorderTask(sourceId: string, targetId: string) {
+    if (sourceId === targetId || reorderMutation.isPending) return;
+    const taskIds = tasks.map(({ id }) => id);
+    const sourceIndex = taskIds.indexOf(sourceId);
+    const targetIndex = taskIds.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    taskIds.splice(sourceIndex, 1);
+    taskIds.splice(targetIndex, 0, sourceId);
+    setActionError('');
+    reorderMutation.mutate(taskIds);
+  }
+
+  function taskDragProps(taskId: string) {
+    return {
+      draggable: tasks.length > 1 && !reorderMutation.isPending,
+      onDragStart: (event: React.DragEvent<HTMLElement>) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', taskId);
+        setDraggedTaskId(taskId);
+      },
+      onDragOver: (event: React.DragEvent<HTMLElement>) => {
+        if (draggedTaskId && draggedTaskId !== taskId) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }
+      },
+      onDrop: (event: React.DragEvent<HTMLElement>) => {
+        event.preventDefault();
+        const sourceId = event.dataTransfer.getData('text/plain') || draggedTaskId;
+        if (sourceId) reorderTask(sourceId, taskId);
+      },
+      onDragEnd: () => setDraggedTaskId(null),
+    };
+  }
 
   return (
     <main className="app-shell">
@@ -195,9 +239,11 @@ function App() {
                       {items.slice(0, 5).map((item) => (
                         <label
                           key={`${item.taskId}-${item.date}`}
-                          className={`calendar-task${item.done ? ' is-done' : ''}${item.overdue ? ' is-overdue' : ''}`}
+                          className={`calendar-task${item.done ? ' is-done' : ''}${item.overdue ? ' is-overdue' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
                           title={item.title}
+                          {...taskDragProps(item.taskId)}
                         >
+                          <span className="task-drag-handle" aria-hidden="true">⠿</span>
                           <input
                             className="calendar-task-check"
                             type="checkbox"
@@ -241,7 +287,7 @@ function App() {
           <footer className="calendar-footer">
             <span><i className="legend-dot today-dot"/> Today</span>
             <span><i className="legend-dot overdue-dot"/> Needs attention</span>
-            <span className="footer-hint">Select a day to see the details</span>
+            <span className="footer-hint">Drag tasks to reorder · Select a day for details</span>
           </footer>
         </section>
       </section>
@@ -289,9 +335,11 @@ function App() {
                       const task = tasks.find(({ id }) => id === item.taskId);
                       return (
                         <article
-                          className={`occurrence-card${item.overdue ? ' overdue-card' : ''}`}
+                          className={`occurrence-card${item.overdue ? ' overdue-card' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
+                          {...taskDragProps(item.taskId)}
                           key={`${item.taskId}-${item.date}`}>
                           <label className="check-row">
+                            <span className="task-drag-handle" aria-hidden="true">⠿</span>
                             <input
                               type="checkbox"
                               checked={item.done}

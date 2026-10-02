@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -103,4 +104,11 @@ export class UpdateTaskDto {
   @Min(1)
   @Max(31)
   dayOfMonth?: number | null;
+}
+
+export class ReorderTasksDto {
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  taskIds!: string[];
 }

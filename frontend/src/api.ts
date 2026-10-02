@@ -7,6 +7,7 @@ export type RecurrenceType =
 
 export interface Task {
   id: string;
+  sortOrder: number;
   title: string;
   notes: string | null;
   color: string | null;
@@ -33,7 +34,7 @@ export interface SkippedOccurrence {
   color: string | null;
 }
 
-export type TaskInput = Omit<Task, 'id'>;
+export type TaskInput = Omit<Task, 'id' | 'sortOrder'>;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -65,6 +66,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(task),
     }),
+  reorderTasks: (taskIds: string[]) => request<Task[]>('/tasks/order', {
+    method: 'PUT',
+    body: JSON.stringify({ taskIds }),
+  }),
   deleteTask: (id: string) => request<{
     deleted: boolean
   }>(`/tasks/${id}`, { method: 'DELETE' }),
