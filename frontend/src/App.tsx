@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   addMonths,
+  addWeeks,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -11,6 +12,7 @@ import {
   startOfMonth,
   startOfWeek,
   subMonths,
+  subWeeks,
 } from 'date-fns';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, Occurrence, RecurrenceType, Task, TaskInput } from './api';
@@ -20,17 +22,23 @@ const colors = ['#d6785f', '#d6a448', '#6b9b83', '#6383b0', '#9a75aa', '#75818a'
 const today = () => format(new Date(), 'yyyy-MM-dd');
 
 function App() {
-  const [month, setMonth] = useState(startOfMonth(new Date()));
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<'month' | 'week'>('month');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isModalClosing, setIsModalClosing] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [actionError, setActionError] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  function closeModal() {
+    setEditing(null);
+    setIsModalClosing(true);
+  }
+
   useEffect(() => {
     if (!selectedDate) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setSelectedDate(null);
-        setEditing(null);
+        closeModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -38,11 +46,21 @@ function App() {
   }, [selectedDate]);
 
   const queryClient = useQueryClient();
-  const gridStart = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-  const gridEnd = endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
+  const month = startOfMonth(currentDate);
+  const gridStart = view === 'week'
+    ? startOfWeek(currentDate, { weekStartsOn: 1 })
+    : startOfWeek(month, { weekStartsOn: 1 });
+  const gridEnd = view === 'week'
+    ? endOfWeek(currentDate, { weekStartsOn: 1 })
+    : endOfWeek(endOfMonth(month), { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
   const from = format(gridStart, 'yyyy-MM-dd');
   const to = format(gridEnd, 'yyyy-MM-dd');
+  const periodTitle = view === 'week'
+    ? gridStart.getFullYear() === gridEnd.getFullYear()
+      ? `${format(gridStart, 'MMM d')} – ${format(gridEnd, 'MMM d, yyyy')}`
+      : `${format(gridStart, 'MMM d, yyyy')} – ${format(gridEnd, 'MMM d, yyyy')}`
+    : format(month, 'MMMM yyyy');
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: api.tasks });
   const occurrencesQuery = useQuery({
     queryKey: ['occurrences', from, to],
@@ -104,7 +122,7 @@ function App() {
       setActionError('');
       await updateQueries();
       setEditing(null);
-      if (!variables.taskId) setSelectedDate(null);
+      if (!variables.taskId) closeModal();
     },
     onError: (error) => setActionError(error.message),
   });
@@ -122,6 +140,18 @@ function App() {
     saveMutation.mutate({ input, taskId });
   }
 
+  function openModal(date: string) {
+    setSelectedDate(date);
+    setEditing(null);
+    setActionError('');
+    setIsModalClosing(false);
+  }
+
+  function openDay(date: string) {
+    setCurrentDate(parseISO(date));
+    openModal(date);
+  }
+
   const tasks = tasksQuery.data ?? [];
   const isLoading = tasksQuery.isPending || occurrencesQuery.isPending;
 
@@ -137,7 +167,7 @@ function App() {
     reorderMutation.mutate(taskIds);
   }
 
-  function taskDragProps(taskId: string) {
+  function taskDragHandleProps(taskId: string) {
     return {
       draggable: tasks.length > 1 && !reorderMutation.isPending,
       onDragStart: (event: React.DragEvent<HTMLElement>) => {
@@ -145,6 +175,12 @@ function App() {
         event.dataTransfer.setData('text/plain', taskId);
         setDraggedTaskId(taskId);
       },
+      onDragEnd: () => setDraggedTaskId(null),
+    };
+  }
+
+  function taskDropProps(taskId: string) {
+    return {
       onDragOver: (event: React.DragEvent<HTMLElement>) => {
         if (draggedTaskId && draggedTaskId !== taskId) {
           event.preventDefault();
@@ -156,7 +192,6 @@ function App() {
         const sourceId = event.dataTransfer.getData('text/plain') || draggedTaskId;
         if (sourceId) reorderTask(sourceId, taskId);
       },
-      onDragEnd: () => setDraggedTaskId(null),
     };
   }
 
@@ -167,57 +202,60 @@ function App() {
           <span className="brand-mark">M</span><span>month<span
           className="brand-light">planner</span></span>
         </a>
-        <div className="topbar-note"><span className="local-dot"/> Your private
-          space
-        </div>
       </header>
 
       <section className="workspace">
         <div className="page-heading">
-          <div>
-            <p className="eyebrow">YOUR ROUTINE, AT A GLANCE</p>
-            <h1>Make room for what matters.</h1>
-          </div>
-          <button className="primary-button" onClick={() => {
-            setSelectedDate(today());
-            setEditing(null);
-            setActionError('');
-          }}>
+          <button className="primary-button" onClick={() => openModal(today())}>
             <span className="plus">+</span> Add a task
           </button>
         </div>
 
-        <section className="calendar-card" aria-label="Monthly calendar">
+        <section className="calendar-card"
+                 aria-label={view === 'week' ? 'Weekly calendar' : 'Monthly calendar'}>
           <div className="calendar-toolbar">
             <div className="month-title">
-              <h2>{format(month, 'MMMM yyyy')}</h2>
+              <h2>{periodTitle}</h2>
               <span>{tasks.length} {tasks.length === 1 ? 'routine' : 'routines'} in your planner</span>
             </div>
             <div className="month-actions">
+              <div className="view-switch" role="group" aria-label="Calendar view">
+                <button type="button" aria-pressed={view === 'month'}
+                        onClick={() => setView('month')}>Month</button>
+                <button type="button" aria-pressed={view === 'week'}
+                        onClick={() => setView('week')}>Week</button>
+              </div>
               <button className="today-button"
-                      onClick={() => setMonth(startOfMonth(new Date()))}>Today
+                      onClick={() => setCurrentDate(new Date())}>Today
               </button>
-              <button className="icon-button" aria-label="Previous month"
-                      onClick={() => setMonth(startOfMonth(subMonths(month, 1)))}>‹
+              <button className="icon-button"
+                      aria-label={view === 'week' ? 'Previous week' : 'Previous month'}
+                      onClick={() => setCurrentDate(view === 'week'
+                        ? subWeeks(currentDate, 1)
+                        : startOfMonth(subMonths(month, 1)))}>‹
               </button>
-              <button className="icon-button" aria-label="Next month"
-                      onClick={() => setMonth(startOfMonth(addMonths(month, 1)))}>›
+              <button className="icon-button"
+                      aria-label={view === 'week' ? 'Next week' : 'Next month'}
+                      onClick={() => setCurrentDate(view === 'week'
+                        ? addWeeks(currentDate, 1)
+                        : startOfMonth(addMonths(month, 1)))}>›
               </button>
             </div>
           </div>
           <div className="weekday-row">{weekdayLabels.map((day) => <div
             key={day}>{day}</div>)}</div>
           {isLoading ? (
-            <div className="loading-state">Getting your month ready…</div>
+            <div className="loading-state">Getting your {view} ready…</div>
           ) : occurrencesQuery.isError || tasksQuery.isError ? (
             <div className="error-state">Couldn't load your
               planner. {String(occurrencesQuery.error ?? tasksQuery.error)}</div>
           ) : (
-            <div className="calendar-grid">
+            <div className={`calendar-grid${view === 'week' ? ' week-view' : ''}`}>
               {days.map((day) => {
                 const key = format(day, 'yyyy-MM-dd');
                 const items = byDate.get(key) ?? [];
-                const inMonth = isSameMonth(day, month);
+                const visibleItems = view === 'week' ? items : items.slice(0, 5);
+                const inMonth = view === 'week' || isSameMonth(day, month);
                 return (
                   <div
                     className={`day-cell${inMonth ? '' : ' outside'}${isToday(day) ? ' current-day' : ''}`}
@@ -226,53 +264,53 @@ function App() {
                     <button
                       type="button"
                       className="day-open"
-                      onClick={() => {
-                        setSelectedDate(key);
-                        setEditing(null);
-                        setActionError('');
-                      }}
+                      onClick={() => openDay(key)}
                       aria-label={`Open ${format(day, 'EEEE, MMMM d')}, ${items.length} tasks`}
                     >
                       <span className="day-number">{format(day, 'd')}</span>
                     </button>
                     <div className="cell-tasks">
-                      {items.slice(0, 5).map((item) => (
-                        <label
+                      {visibleItems.map((item) => (
+                        <div
                           key={`${item.taskId}-${item.date}`}
                           className={`calendar-task${item.done ? ' is-done' : ''}${item.overdue ? ' is-overdue' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
                           title={item.title}
-                          {...taskDragProps(item.taskId)}
+                          {...taskDropProps(item.taskId)}
                         >
-                          <span className="task-drag-handle" aria-hidden="true">⠿</span>
-                          <input
-                            className="calendar-task-check"
-                            type="checkbox"
-                            checked={item.done}
-                            aria-label={`Mark ${item.title} ${item.done ? 'not done' : 'done'}`}
-                            onChange={(event) => {
-                              setActionError('');
-                              doneMutation.mutate({
-                                occurrence: item,
-                                done: event.target.checked,
-                              });
-                            }}
-                          />
-                          <span className="task-dot"
-                                style={{ backgroundColor: item.color ?? colors[0] }}/>
-                          <span className="task-label">{item.title}</span>
-                        </label>
+                          <button
+                            type="button"
+                            className="task-drag-handle"
+                            aria-label={`Drag ${item.title} to reorder`}
+                            title="Drag to reorder"
+                            {...taskDragHandleProps(item.taskId)}
+                          >⠿</button>
+                          <label className="calendar-task-content">
+                            <input
+                              className="calendar-task-check"
+                              type="checkbox"
+                              checked={item.done}
+                              aria-label={`Mark ${item.title} ${item.done ? 'not done' : 'done'}`}
+                              onChange={(event) => {
+                                setActionError('');
+                                doneMutation.mutate({
+                                  occurrence: item,
+                                  done: event.target.checked,
+                                });
+                              }}
+                            />
+                            <span className="task-dot"
+                                  style={{ backgroundColor: item.color ?? colors[0] }}/>
+                            <span className="task-label">{item.title}</span>
+                          </label>
+                        </div>
                       ))}
-                      {items.length > 5 && (
+                      {view === 'month' && items.length > 5 && (
                         <button
                           type="button"
                           className="more-tasks"
                           aria-label={`See all ${items.length} tasks for ${format(day, 'MMMM d')}`}
                           title={`See all ${items.length} tasks`}
-                          onClick={() => {
-                            setSelectedDate(key);
-                            setEditing(null);
-                            setActionError('');
-                          }}
+                          onClick={() => openDay(key)}
                         >
                           <span className="more-full">See all {items.length} tasks</span>
                           <span className="more-compact">+{items.length - 5} more</span>
@@ -296,19 +334,22 @@ function App() {
         <div className="global-error" role="alert">{actionError}</div>}
 
       {selectedDate && (
-        <div className="overlay" role="presentation" onMouseDown={(event) => {
+        <div className={`overlay${isModalClosing ? ' is-closing' : ''}`}
+             role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) {
-            setSelectedDate(null);
-            setEditing(null);
+            closeModal();
           }
         }}>
           <section className="day-panel" role="dialog" aria-modal="true"
-                   aria-labelledby="panel-title">
+                   aria-labelledby="panel-title"
+                   onAnimationEnd={(event) => {
+                     if (event.target === event.currentTarget && isModalClosing) {
+                       setSelectedDate(null);
+                       setIsModalClosing(false);
+                     }
+                   }}>
             <button className="close-button" aria-label="Close details"
-                    onClick={() => {
-                      setSelectedDate(null);
-                      setEditing(null);
-                    }}>×
+                    onClick={closeModal}>×
             </button>
             <p
               className="eyebrow">{format(parseISO(selectedDate), 'EEEE').toUpperCase()}</p>
@@ -336,22 +377,30 @@ function App() {
                       return (
                         <article
                           className={`occurrence-card${item.overdue ? ' overdue-card' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
-                          {...taskDragProps(item.taskId)}
+                          {...taskDropProps(item.taskId)}
                           key={`${item.taskId}-${item.date}`}>
-                          <label className="check-row">
-                            <span className="task-drag-handle" aria-hidden="true">⠿</span>
-                            <input
-                              type="checkbox"
-                              checked={item.done}
-                              onChange={(event) => doneMutation.mutate({
-                                occurrence: item,
-                                done: event.target.checked,
-                              })}
-                            />
-                            <span className="custom-check"/>
-                            <span
-                              className={`occurrence-title${item.done ? ' completed-title' : ''}`}>{item.title}</span>
-                          </label>
+                          <div className="occurrence-heading">
+                            <button
+                              type="button"
+                              className="task-drag-handle"
+                              aria-label={`Drag ${item.title} to reorder`}
+                              title="Drag to reorder"
+                              {...taskDragHandleProps(item.taskId)}
+                            >⠿</button>
+                            <label className="check-row">
+                              <input
+                                type="checkbox"
+                                checked={item.done}
+                                onChange={(event) => doneMutation.mutate({
+                                  occurrence: item,
+                                  done: event.target.checked,
+                                })}
+                              />
+                              <span className="custom-check"/>
+                              <span
+                                className={`occurrence-title${item.done ? ' completed-title' : ''}`}>{item.title}</span>
+                            </label>
+                          </div>
                           <span className="occurrence-category"><i
                             style={{ backgroundColor: item.color ?? colors[0] }}/>{task?.recurrenceType ?? 'task'}</span>
                           {item.notes &&
@@ -396,7 +445,7 @@ function App() {
                   </>
                 )}
                 <TaskForm date={selectedDate}
-                          onCancel={() => setSelectedDate(null)}
+                          onCancel={closeModal}
                           onSave={(input) => saveTask(input)} compact/>
               </>
             )}

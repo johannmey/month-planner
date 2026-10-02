@@ -103,6 +103,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
     margin-bottom: 30px;
 }
 
+.page-heading > .primary-button {
+    margin-left: auto;
+}
+
 .eyebrow {
     margin: 0 0 11px;
     color: #89948b;
@@ -196,6 +200,30 @@ h1 {
     gap: 7px;
 }
 
+.view-switch {
+    display: flex;
+    gap: 2px;
+    margin-right: 4px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: #f8f9f7;
+}
+
+.view-switch button {
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 4px;
+    color: #778078;
+    background: transparent;
+    font-size: 11px;
+}
+
+.view-switch button[aria-pressed="true"] {
+    color: white;
+    background: var(--green);
+}
+
 .today-button, .icon-button {
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -243,6 +271,10 @@ h1 {
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-grid.week-view .day-cell {
+    min-height: 260px;
 }
 
 .day-cell {
@@ -331,15 +363,24 @@ h1 {
     background: #f2f4f0;
     color: #59645b;
     font-size: 13px;
-    line-height: 1.25;
+    line-height: 1.4;
 }
 
 .calendar-task {
     pointer-events: auto;
-    cursor: grab;
+    cursor: default;
 }
 
-.calendar-task:active, .occurrence-card[draggable="true"]:active {
+.calendar-task-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 7px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.task-drag-handle:active {
     cursor: grabbing;
 }
 
@@ -348,10 +389,17 @@ h1 {
 }
 
 .task-drag-handle {
+    display: grid;
+    place-items: center;
     flex: 0 0 8px;
     width: 8px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    border: 0;
     overflow: hidden;
     color: #aab2aa;
+    background: transparent;
     font-size: 12px;
     line-height: 1;
     cursor: grab;
@@ -373,6 +421,8 @@ h1 {
 }
 
 .task-label {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -479,6 +529,10 @@ h1 {
     animation: fade-in .16s ease-out;
 }
 
+.overlay.is-closing {
+    animation: fade-out .2s ease-in forwards;
+}
+
 .day-panel {
     position: relative;
     width: min(470px, 100%);
@@ -488,6 +542,10 @@ h1 {
     background: #fff;
     box-shadow: -8px 0 35px #1722191a;
     animation: slide-in .2s ease-out;
+}
+
+.overlay.is-closing .day-panel {
+    animation: slide-out .2s ease-in forwards;
 }
 
 .close-button {
@@ -549,7 +607,18 @@ h1 {
     border: 1px solid #e9ebe6;
     border-radius: 8px;
     background: #fff;
-    cursor: grab;
+    cursor: default;
+}
+
+.occurrence-heading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.occurrence-heading .check-row {
+    flex: 1;
+    min-width: 0;
 }
 
 .overdue-card {
@@ -881,6 +950,26 @@ h1 {
     }
 }
 
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes slide-out {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(16px);
+        opacity: .8;
+    }
+}
+
 @media (max-width: 760px) {
     .topbar {
         height: 58px;
@@ -907,6 +996,10 @@ h1 {
     .day-cell {
         min-height: 178px;
         padding: 10px 7px;
+    }
+
+    .calendar-grid.week-view .day-cell {
+        min-height: 230px;
     }
 
     .calendar-task {
@@ -962,6 +1055,24 @@ h1 {
 
     .month-title h2 {
         font-size: 21px;
+    }
+
+    .calendar-toolbar {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .month-title, .month-actions {
+        width: 100%;
+    }
+
+    .month-actions {
+        justify-content: flex-end;
+    }
+
+    .calendar-grid.week-view .day-cell {
+        min-height: 190px;
     }
 
     .month-title span {
