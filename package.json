@@ -1,0 +1,16 @@
+{
+  "name": "month-planner",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.13.1",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"pnpm --filter backend start:dev\" \"wait-on http-get://127.0.0.1:3003/api/tasks && pnpm --filter frontend dev\"",
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "start": "pnpm --filter backend start:prod",
+    "test": "pnpm --filter backend test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.3"
+  }
+}
