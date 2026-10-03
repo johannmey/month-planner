@@ -316,6 +316,11 @@ h1 {
     background: #f8faf7;
 }
 
+.day-cell.is-drop-target {
+    background: #f0f5f0;
+    box-shadow: inset 0 0 0 2px #a8bba9;
+}
+
 .day-cell.outside {
     background: #fcfcfa;
 }
@@ -1238,6 +1243,11 @@ h1 {
 
 .app-shell[data-theme="dark"] .day-cell:hover {
     background: #28312b;
+}
+
+.app-shell[data-theme="dark"] .day-cell.is-drop-target {
+    background: #303d33;
+    box-shadow: inset 0 0 0 2px #78977d;
 }
 
 .app-shell[data-theme="dark"] .day-cell.outside {

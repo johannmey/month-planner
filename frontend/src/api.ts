@@ -21,6 +21,7 @@ export interface Task {
 export interface Occurrence {
   taskId: string;
   date: string;
+  occurrenceDate: string;
   title: string;
   notes: string | null;
   color: string | null;
@@ -30,6 +31,7 @@ export interface Occurrence {
 
 export interface SkippedOccurrence {
   taskId: string;
+  occurrenceDate: string;
   title: string;
   color: string | null;
 }
@@ -77,4 +79,9 @@ export const api = {
     request(`/tasks/${id}/completions/${date}`, { method: done ? 'PUT' : 'DELETE' }),
   setSkipped: (id: string, date: string, skipped: boolean) =>
     request(`/tasks/${id}/skips/${date}`, { method: skipped ? 'PUT' : 'DELETE' }),
+  moveOccurrence: (id: string, occurrenceDate: string, date: string) =>
+    request<{ moved: true }>(`/tasks/${id}/occurrences/${occurrenceDate}/move`, {
+      method: 'PUT',
+      body: JSON.stringify({ date }),
+    }),
 };

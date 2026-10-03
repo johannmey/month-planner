@@ -21,6 +21,7 @@ const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const colors = ['#d6785f', '#d6a448', '#6b9b83', '#6383b0', '#9a75aa', '#75818a'];
 const today = () => format(new Date(), 'yyyy-MM-dd');
 const themeStorageKey = 'month-planner-theme';
+type OccurrenceDrag = Pick<Occurrence, 'taskId' | 'date' | 'occurrenceDate'>;
 
 function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -33,6 +34,8 @@ function App() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [actionError, setActionError] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [draggedOccurrence, setDraggedOccurrence] = useState<OccurrenceDrag | null>(null);
+  const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(themeStorageKey, isDarkMode ? 'dark' : 'light');
@@ -99,7 +102,7 @@ function App() {
       occurrence: Occurrence;
       done: boolean
     }) =>
-      api.setDone(occurrence.taskId, occurrence.date, done),
+      api.setDone(occurrence.taskId, occurrence.occurrenceDate, done),
     onSuccess: updateQueries,
     onError: (error) => setActionError(error.message),
   });
@@ -143,6 +146,15 @@ function App() {
     },
     onError: (error) => setActionError(error.message),
   });
+  const moveMutation = useMutation({
+    mutationFn: ({ taskId, occurrenceDate, date }: OccurrenceDrag) =>
+      api.moveOccurrence(taskId, occurrenceDate, date),
+    onSuccess: async () => {
+      setActionError('');
+      await updateQueries();
+    },
+    onError: (error) => setActionError(error.message),
+  });
 
   function saveTask(input: TaskInput, taskId?: string) {
     setActionError('');
@@ -164,6 +176,12 @@ function App() {
   const tasks = tasksQuery.data ?? [];
   const isLoading = tasksQuery.isPending || occurrencesQuery.isPending;
 
+  function isDraggingOccurrence(occurrence: Occurrence) {
+    return draggedOccurrence !== null &&
+      draggedOccurrence.taskId === occurrence.taskId &&
+      draggedOccurrence.occurrenceDate === occurrence.occurrenceDate;
+  }
+
   function reorderTask(sourceId: string, targetId: string) {
     if (sourceId === targetId || reorderMutation.isPending) return;
     const taskIds = tasks.map(({ id }) => id);
@@ -176,29 +194,90 @@ function App() {
     reorderMutation.mutate(taskIds);
   }
 
-  function taskDragHandleProps(taskId: string) {
+  function taskDragHandleProps(occurrence: OccurrenceDrag) {
     return {
-      draggable: tasks.length > 1 && !reorderMutation.isPending,
+      draggable: !reorderMutation.isPending && !moveMutation.isPending,
       onDragStart: (event: React.DragEvent<HTMLElement>) => {
         event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', taskId);
-        setDraggedTaskId(taskId);
+        event.dataTransfer.setData('text/plain', occurrence.taskId);
+        event.dataTransfer.setData('application/x-month-planner-occurrence-date', occurrence.occurrenceDate);
+        event.dataTransfer.setData('application/x-month-planner-display-date', occurrence.date);
+        setDraggedTaskId(occurrence.taskId);
+        setDraggedOccurrence(occurrence);
       },
-      onDragEnd: () => setDraggedTaskId(null),
+      onDragEnd: () => {
+        setDraggedTaskId(null);
+        setDraggedOccurrence(null);
+        setDropTargetDate(null);
+      },
     };
   }
 
-  function taskDropProps(taskId: string) {
+  function getDraggedOccurrence(event: React.DragEvent<HTMLElement>): OccurrenceDrag | null {
+    const taskId = event.dataTransfer.getData('text/plain') || draggedOccurrence?.taskId;
+    if (!taskId) return null;
+    const fallback = draggedOccurrence?.taskId === taskId ? draggedOccurrence : null;
+    const occurrenceDate =
+      event.dataTransfer.getData('application/x-month-planner-occurrence-date') ||
+      fallback?.occurrenceDate;
+    const date =
+      event.dataTransfer.getData('application/x-month-planner-display-date') ||
+      fallback?.date;
+    return occurrenceDate && date ? { taskId, occurrenceDate, date } : null;
+  }
+
+  function dropOccurrenceOnDate(event: React.DragEvent<HTMLElement>, date: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDropTargetDate(null);
+    const occurrence = getDraggedOccurrence(event);
+    if (!occurrence || occurrence.date === date) return;
+    setActionError('');
+    moveMutation.mutate({ ...occurrence, date });
+  }
+
+  function dayDropProps(date: string) {
     return {
       onDragOver: (event: React.DragEvent<HTMLElement>) => {
-        if (draggedTaskId && draggedTaskId !== taskId) {
+        if (draggedOccurrence && draggedOccurrence.date !== date) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          setDropTargetDate(date);
+        }
+      },
+      onDragLeave: (event: React.DragEvent<HTMLElement>) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        ) {
+          setDropTargetDate(null);
+        }
+      },
+      onDrop: (event: React.DragEvent<HTMLElement>) => dropOccurrenceOnDate(event, date),
+    };
+  }
+
+  function taskDropProps(taskId: string, targetDate?: string) {
+    return {
+      onDragOver: (event: React.DragEvent<HTMLElement>) => {
+        if (
+          draggedTaskId &&
+          (draggedTaskId !== taskId || (targetDate && draggedOccurrence?.date !== targetDate))
+        ) {
           event.preventDefault();
           event.dataTransfer.dropEffect = 'move';
         }
       },
       onDrop: (event: React.DragEvent<HTMLElement>) => {
         event.preventDefault();
-        const sourceId = event.dataTransfer.getData('text/plain') || draggedTaskId;
+        event.stopPropagation();
+        const occurrence = getDraggedOccurrence(event);
+        if (occurrence && targetDate && occurrence.date !== targetDate) {
+          setActionError('');
+          moveMutation.mutate({ ...occurrence, date: targetDate });
+          return;
+        }
+        const sourceId = occurrence?.taskId ?? draggedTaskId;
         if (sourceId) reorderTask(sourceId, taskId);
       },
     };
@@ -276,8 +355,9 @@ function App() {
                 const inMonth = view === 'week' || isSameMonth(day, month);
                 return (
                   <div
-                    className={`day-cell${inMonth ? '' : ' outside'}${isToday(day) ? ' current-day' : ''}`}
+                    className={`day-cell${inMonth ? '' : ' outside'}${isToday(day) ? ' current-day' : ''}${dropTargetDate === key ? ' is-drop-target' : ''}`}
                     key={key}
+                    {...dayDropProps(key)}
                   >
                     <button
                       type="button"
@@ -290,17 +370,17 @@ function App() {
                     <div className="cell-tasks">
                       {visibleItems.map((item) => (
                         <div
-                          key={`${item.taskId}-${item.date}`}
-                          className={`calendar-task${item.done ? ' is-done' : ''}${item.overdue ? ' is-overdue' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
+                          key={`${item.taskId}-${item.occurrenceDate}`}
+                          className={`calendar-task${item.done ? ' is-done' : ''}${item.overdue ? ' is-overdue' : ''}${isDraggingOccurrence(item) ? ' is-dragging' : ''}`}
                           title={item.title}
-                          {...taskDropProps(item.taskId)}
+                          {...taskDropProps(item.taskId, item.date)}
                         >
                           <button
                             type="button"
                             className="task-drag-handle"
-                            aria-label={`Drag ${item.title} to reorder`}
-                            title="Drag to reorder"
-                            {...taskDragHandleProps(item.taskId)}
+                            aria-label={`Drag ${item.title} to move or reorder`}
+                            title="Drag to move or reorder"
+                            {...taskDragHandleProps(item)}
                           >⠿</button>
                           <label className="calendar-task-content">
                             <input
@@ -343,7 +423,7 @@ function App() {
           <footer className="calendar-footer">
             <span><i className="legend-dot today-dot"/> Today</span>
             <span><i className="legend-dot overdue-dot"/> Needs attention</span>
-            <span className="footer-hint">Drag tasks to reorder · Select a day for details</span>
+            <span className="footer-hint">Drag tasks to move or reorder · Select a day for details</span>
           </footer>
         </section>
       </section>
@@ -394,16 +474,16 @@ function App() {
                       const task = tasks.find(({ id }) => id === item.taskId);
                       return (
                         <article
-                          className={`occurrence-card${item.overdue ? ' overdue-card' : ''}${draggedTaskId === item.taskId ? ' is-dragging' : ''}`}
+                          className={`occurrence-card${item.overdue ? ' overdue-card' : ''}${isDraggingOccurrence(item) ? ' is-dragging' : ''}`}
                           {...taskDropProps(item.taskId)}
-                          key={`${item.taskId}-${item.date}`}>
+                          key={`${item.taskId}-${item.occurrenceDate}`}>
                           <div className="occurrence-heading">
                             <button
                               type="button"
                               className="task-drag-handle"
-                              aria-label={`Drag ${item.title} to reorder`}
-                              title="Drag to reorder"
-                              {...taskDragHandleProps(item.taskId)}
+                              aria-label={`Drag ${item.title} to move or reorder`}
+                              title="Drag to move or reorder"
+                              {...taskDragHandleProps(item)}
                             >⠿</button>
                             <label className="check-row">
                               <input
@@ -429,7 +509,7 @@ function App() {
                             </button>
                             <button onClick={() => skipMutation.mutate({
                               taskId: item.taskId,
-                              date: item.date,
+                              date: item.occurrenceDate,
                               skipped: true,
                             })}>Skip today
                             </button>
@@ -449,12 +529,13 @@ function App() {
                       <h3>Skipped today</h3>
                       <span>{selectedQuery.data!.length}</span></div>
                     {selectedQuery.data!.map((item) => (
-                      <div className="skipped-row" key={item.taskId}>
+                      <div className="skipped-row"
+                           key={`${item.taskId}-${item.occurrenceDate}`}>
                         <span><i
                           style={{ backgroundColor: item.color ?? colors[0] }}/>{item.title}</span>
                         <button onClick={() => skipMutation.mutate({
                           taskId: item.taskId,
-                          date: selectedDate,
+                          date: item.occurrenceDate,
                           skipped: false,
                         })}>Restore
                         </button>

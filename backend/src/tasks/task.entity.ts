@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Completion } from '../occurrences/completion.entity';
+import { OccurrenceMove } from '../occurrences/occurrence-move.entity';
 import { Skip } from '../occurrences/skip.entity';
 
 export type TaskRecurrence = 'once' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
@@ -52,4 +53,7 @@ export class Task {
 
   @OneToMany(() => Skip, (skip) => skip.task, { cascade: true })
   skips!: Skip[];
+
+  @OneToMany(() => OccurrenceMove, (move) => move.task, { cascade: true })
+  occurrenceMoves!: OccurrenceMove[];
 }

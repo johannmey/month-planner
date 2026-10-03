@@ -5,11 +5,13 @@ import { isDateKey, localDateKey } from '../date-utils';
 import { expandTaskDates } from '../recurrence/recurrence';
 import { Task } from '../tasks/task.entity';
 import { Completion } from './completion.entity';
+import { OccurrenceMove } from './occurrence-move.entity';
 import { Skip } from './skip.entity';
 
 export interface TaskOccurrence {
   taskId: string;
   date: string;
+  occurrenceDate: string;
   title: string;
   notes: string | null;
   color: string | null;
@@ -23,19 +25,41 @@ export class OccurrencesService {
     @InjectRepository(Task) private readonly tasks: Repository<Task>,
     @InjectRepository(Completion) private readonly completions: Repository<Completion>,
     @InjectRepository(Skip) private readonly skips: Repository<Skip>,
+    @InjectRepository(OccurrenceMove) private readonly moves: Repository<OccurrenceMove>,
   ) {}
 
   async list(from: string, to: string): Promise<TaskOccurrence[]> {
     this.validateRange(from, to);
     const allTasks = await this.tasks.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
-    const candidates: Array<{ task: Task; date: string }> = [];
+    if (allTasks.length === 0) return [];
+
+    const taskById = new Map(allTasks.map((task) => [task.id, task]));
+    const moves = await this.moves.find({ where: { taskId: In(allTasks.map(({ id }) => id)) } });
+    const movedOccurrences = new Map(
+      moves.map((move) => [`${move.taskId}:${move.occurrenceDate}`, move]),
+    );
+    const candidates: Array<{ task: Task; date: string; occurrenceDate: string }> = [];
     for (const task of allTasks) {
-      for (const date of expandTaskDates(task, from, to)) candidates.push({ task, date });
+      for (const occurrenceDate of expandTaskDates(task, from, to)) {
+        if (movedOccurrences.has(`${task.id}:${occurrenceDate}`)) continue;
+        candidates.push({ task, date: occurrenceDate, occurrenceDate });
+      }
+    }
+    for (const move of moves) {
+      const task = taskById.get(move.taskId);
+      if (
+        task &&
+        move.movedDate >= from &&
+        move.movedDate <= to &&
+        expandTaskDates(task, move.occurrenceDate, move.occurrenceDate).includes(move.occurrenceDate)
+      ) {
+        candidates.push({ task, date: move.movedDate, occurrenceDate: move.occurrenceDate });
+      }
     }
     if (candidates.length === 0) return [];
 
     const taskIds = [...new Set(candidates.map(({ task }) => task.id))];
-    const dates = [...new Set(candidates.map(({ date }) => date))];
+    const dates = [...new Set(candidates.map(({ occurrenceDate }) => occurrenceDate))];
     const [completions, skips] = await Promise.all([
       this.completions.find({ where: { taskId: In(taskIds), date: In(dates) } }),
       this.skips.find({ where: { taskId: In(taskIds), date: In(dates) } }),
@@ -45,17 +69,38 @@ export class OccurrencesService {
     const today = localDateKey();
 
     return candidates
-      .filter(({ task, date }) => !skippedKeys.has(`${task.id}:${date}`))
-      .map(({ task, date }) => ({
+      .filter(({ task, occurrenceDate }) =>
+        !skippedKeys.has(`${task.id}:${occurrenceDate}`),
+      )
+      .map(({ task, date, occurrenceDate }) => ({
         taskId: task.id,
         date,
+        occurrenceDate,
         title: task.title,
         notes: task.notes,
         color: task.color,
-        done: doneKeys.has(`${task.id}:${date}`),
-        overdue: date < today && !doneKeys.has(`${task.id}:${date}`),
+        done: doneKeys.has(`${task.id}:${occurrenceDate}`),
+        overdue: date < today && !doneKeys.has(`${task.id}:${occurrenceDate}`),
       }))
-      .sort((a, b) => a.date.localeCompare(b.date) || Number(a.done) - Number(b.done));
+      .sort((a, b) =>
+        a.date.localeCompare(b.date) ||
+        Number(a.done) - Number(b.done) ||
+        (taskById.get(a.taskId)?.sortOrder ?? 0) - (taskById.get(b.taskId)?.sortOrder ?? 0) ||
+        a.occurrenceDate.localeCompare(b.occurrenceDate),
+      );
+  }
+
+  async move(taskId: string, occurrenceDate: string, movedDate: string): Promise<{ moved: true }> {
+    await this.assertOccurrence(taskId, occurrenceDate);
+    if (!isDateKey(movedDate)) {
+      throw new BadRequestException('Date must be a valid YYYY-MM-DD date');
+    }
+    if (movedDate === occurrenceDate) {
+      await this.moves.delete({ taskId, occurrenceDate });
+    } else {
+      await this.moves.upsert({ taskId, occurrenceDate, movedDate }, ['taskId', 'occurrenceDate']);
+    }
+    return { moved: true };
   }
 
   async setCompletion(taskId: string, date: string, done: boolean): Promise<void> {
@@ -76,12 +121,33 @@ export class OccurrencesService {
     }
   }
 
-  async listSkipped(date: string): Promise<Array<{ taskId: string; title: string; color: string | null }>> {
+  async listSkipped(date: string): Promise<Array<{
+    taskId: string;
+    occurrenceDate: string;
+    title: string;
+    color: string | null;
+  }>> {
     if (!isDateKey(date)) throw new BadRequestException('Date must be a valid YYYY-MM-DD date');
-    const rows = await this.skips.find({ where: { date }, relations: { task: true } });
+    const rows = await this.skips.find({ relations: { task: true } });
+    const moveRows = rows.length > 0
+      ? await this.moves.find({
+        where: { taskId: In([...new Set(rows.map(({ taskId }) => taskId))]) },
+      })
+      : [];
+    const movedDates = new Map(
+      moveRows.map((move) => [`${move.taskId}:${move.occurrenceDate}`, move.movedDate]),
+    );
     return rows
-      .filter(({ task }) => expandTaskDates(task, date, date).includes(date))
-      .map(({ task }) => ({ taskId: task.id, title: task.title, color: task.color }));
+      .filter(({ task, date: occurrenceDate }) =>
+        expandTaskDates(task, occurrenceDate, occurrenceDate).includes(occurrenceDate) &&
+        (movedDates.get(`${task.id}:${occurrenceDate}`) ?? occurrenceDate) === date,
+      )
+      .map(({ task, date: occurrenceDate }) => ({
+        taskId: task.id,
+        occurrenceDate,
+        title: task.title,
+        color: task.color,
+      }));
   }
 
   private async assertOccurrence(taskId: string, date: string): Promise<void> {

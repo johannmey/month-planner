@@ -8,6 +8,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { OccurrencesModule } from './occurrences/occurrences.module';
 import { Task } from './tasks/task.entity';
 import { Completion } from './occurrences/completion.entity';
+import { OccurrenceMove } from './occurrences/occurrence-move.entity';
 import { Skip } from './occurrences/skip.entity';
 
 const databasePath = process.env.PLANNER_DB_PATH ?? join(__dirname, '..', 'data', 'planner.db');
@@ -19,7 +20,7 @@ mkdirSync(dirname(databasePath), { recursive: true });
       type: 'sqljs',
       location: databasePath,
       autoSave: true,
-      entities: [Task, Completion, Skip],
+      entities: [Task, Completion, Skip, OccurrenceMove],
       synchronize: true,
     }),
     ServeStaticModule.forRoot({

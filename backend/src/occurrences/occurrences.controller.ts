@@ -1,4 +1,5 @@
-import { Controller, Delete, Get, Param, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Put, Query } from '@nestjs/common';
+import { MoveOccurrenceDto } from './dto/move-occurrence.dto';
 import { OccurrencesService } from './occurrences.service';
 
 @Controller()
@@ -13,6 +14,15 @@ export class OccurrencesController {
   @Get('skips')
   listSkipped(@Query('date') date: string) {
     return this.occurrences.listSkipped(date ?? '');
+  }
+
+  @Put('tasks/:id/occurrences/:occurrenceDate/move')
+  move(
+    @Param('id') id: string,
+    @Param('occurrenceDate') occurrenceDate: string,
+    @Body() input: MoveOccurrenceDto,
+  ) {
+    return this.occurrences.move(id, occurrenceDate, input.date);
   }
 
   @Put('tasks/:id/completions/:date')

@@ -143,4 +143,108 @@ describe('Planner API', () => {
     });
     expect(incompleteOrder.status).toBe(400);
   }, 20_000);
+
+  it('moves one recurring occurrence without changing the rest of its series', async () => {
+    const date = localDateKey();
+    const movedDate = addDays(date, 3);
+    const createResponse = await fetch(`${baseUrl}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Move one instance',
+        recurrenceType: 'daily',
+        startDate: date,
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const task = await createResponse.json() as { id: string };
+    const occurrenceUrl = `${baseUrl}/api/occurrences?from=${date}&to=${movedDate}`;
+    const loadOccurrences = () => fetch(occurrenceUrl).then((response) => response.json()) as Promise<Array<{
+      taskId: string;
+      date: string;
+      occurrenceDate: string;
+      done: boolean;
+    }>>;
+
+    const moveResponse = await fetch(
+      `${baseUrl}/api/tasks/${task.id}/occurrences/${date}/move`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: movedDate }),
+      },
+    );
+    expect(moveResponse.status).toBe(200);
+
+    let occurrences = (await loadOccurrences()).filter(({ taskId }) => taskId === task.id);
+    expect(occurrences).toHaveLength(4);
+    expect(occurrences.find(({ occurrenceDate }) => occurrenceDate === date))
+      .toMatchObject({ date: movedDate, occurrenceDate: date, done: false });
+    expect(occurrences.some(({ date: occurrenceDay, occurrenceDate }) =>
+      occurrenceDay === date && occurrenceDate === date,
+    )).toBe(false);
+    expect(occurrences.some(({ date: occurrenceDay, occurrenceDate }) =>
+      occurrenceDay === movedDate && occurrenceDate === movedDate,
+    )).toBe(true);
+
+    await fetch(`${baseUrl}/api/tasks/${task.id}/completions/${date}`, { method: 'PUT' });
+    occurrences = (await loadOccurrences()).filter(({ taskId }) => taskId === task.id);
+    expect(occurrences.find(({ occurrenceDate }) => occurrenceDate === date)?.done).toBe(true);
+    expect(occurrences.find(({ occurrenceDate }) => occurrenceDate === movedDate)?.done).toBe(false);
+
+    await fetch(`${baseUrl}/api/tasks/${task.id}/skips/${date}`, { method: 'PUT' });
+    occurrences = (await loadOccurrences()).filter(({ taskId }) => taskId === task.id);
+    expect(occurrences.some(({ occurrenceDate }) => occurrenceDate === date)).toBe(false);
+    expect(occurrences.some(({ occurrenceDate }) => occurrenceDate === movedDate)).toBe(true);
+    const skipped = await fetch(`${baseUrl}/api/skips?date=${movedDate}`)
+      .then((response) => response.json()) as Array<{ taskId: string; occurrenceDate: string }>;
+    expect(skipped.find(({ taskId, occurrenceDate }) =>
+      taskId === task.id && occurrenceDate === date,
+    )).toBeDefined();
+    await fetch(`${baseUrl}/api/tasks/${task.id}/skips/${date}`, { method: 'DELETE' });
+
+    const restoreResponse = await fetch(
+      `${baseUrl}/api/tasks/${task.id}/occurrences/${date}/move`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date }),
+      },
+    );
+    expect(restoreResponse.status).toBe(200);
+    occurrences = (await loadOccurrences()).filter(({ taskId }) => taskId === task.id);
+    expect(occurrences.find(({ occurrenceDate }) => occurrenceDate === date))
+      .toMatchObject({ date, occurrenceDate: date, done: true });
+    expect(occurrences).toHaveLength(4);
+
+    const oneOffDate = addDays(movedDate, 10);
+    const oneOffResponse = await fetch(`${baseUrl}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Move one-off outside its original date range',
+        recurrenceType: 'once',
+        startDate: date,
+      }),
+    });
+    expect(oneOffResponse.status).toBe(201);
+    const oneOffTask = await oneOffResponse.json() as { id: string };
+    const oneOffMove = await fetch(
+      `${baseUrl}/api/tasks/${oneOffTask.id}/occurrences/${date}/move`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: oneOffDate }),
+      },
+    );
+    expect(oneOffMove.status).toBe(200);
+    const movedOnly = await fetch(`${baseUrl}/api/occurrences?from=${oneOffDate}&to=${oneOffDate}`)
+      .then((response) => response.json()) as Array<{
+        taskId: string;
+        date: string;
+        occurrenceDate: string;
+      }>;
+    expect(movedOnly.find(({ taskId }) => taskId === oneOffTask.id))
+      .toMatchObject({ date: oneOffDate, occurrenceDate: date });
+  }, 20_000);
 });
