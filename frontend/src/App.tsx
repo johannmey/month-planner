@@ -20,15 +20,24 @@ import { api, Occurrence, RecurrenceType, Task, TaskInput } from './api';
 const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const colors = ['#d6785f', '#d6a448', '#6b9b83', '#6383b0', '#9a75aa', '#75818a'];
 const today = () => format(new Date(), 'yyyy-MM-dd');
+const themeStorageKey = 'month-planner-theme';
 
 function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.localStorage.getItem(themeStorageKey) === 'dark',
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [actionError, setActionError] = useState('');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(themeStorageKey, isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
   function closeModal() {
     setEditing(null);
     setIsModalClosing(true);
@@ -196,12 +205,21 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={isDarkMode ? 'dark' : 'light'}>
       <header className="topbar">
         <a className="brand" href="#" aria-label="Month Planner home">
           <span className="brand-mark">M</span><span>month<span
           className="brand-light">planner</span></span>
         </a>
+        <button
+          type="button"
+          className="theme-toggle"
+          aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+          onClick={() => setIsDarkMode((current) => !current)}
+        >
+          <span aria-hidden="true">{isDarkMode ? '☀' : '☾'}</span>
+          {isDarkMode ? 'Light mode' : 'Dark mode'}
+        </button>
       </header>
 
       <section className="workspace">

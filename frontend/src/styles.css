@@ -83,6 +83,23 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
     color: #818982;
 }
 
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: #667068;
+    background: #fff;
+    font-size: 12px;
+}
+
+.theme-toggle:hover {
+    border-color: #bac8bc;
+    color: var(--green);
+}
+
 .local-dot {
     height: 7px;
     width: 7px;
@@ -1130,4 +1147,285 @@ h1 {
     .date-fields {
         gap: 7px;
     }
+}
+
+.app-shell[data-theme="dark"] {
+    color-scheme: dark;
+    color: #e2e8e3;
+    background: #171c19;
+    --line: #343e37;
+    --green: #45664e;
+    --green-light: #293a2e;
+}
+
+.app-shell[data-theme="dark"] .topbar {
+    border-color: #2d3630;
+    background: rgba(28, 34, 30, .96);
+}
+
+.app-shell[data-theme="dark"] .brand {
+    color: #e2e9e3;
+}
+
+.app-shell[data-theme="dark"] .brand-light,
+.app-shell[data-theme="dark"] .topbar-note {
+    color: #a0aaa2;
+}
+
+.app-shell[data-theme="dark"] .theme-toggle,
+.app-shell[data-theme="dark"] .today-button,
+.app-shell[data-theme="dark"] .icon-button {
+    border-color: #3a453e;
+    color: #c2cbc4;
+    background: #252d28;
+}
+
+.app-shell[data-theme="dark"] .theme-toggle:hover,
+.app-shell[data-theme="dark"] .today-button:hover,
+.app-shell[data-theme="dark"] .icon-button:hover {
+    border-color: #617b67;
+    color: #d8e5da;
+    background: #303b33;
+}
+
+.app-shell[data-theme="dark"] .eyebrow,
+.app-shell[data-theme="dark"] .subtitle,
+.app-shell[data-theme="dark"] .month-title span,
+.app-shell[data-theme="dark"] .weekday-row > div,
+.app-shell[data-theme="dark"] .calendar-footer,
+.app-shell[data-theme="dark"] .footer-hint,
+.app-shell[data-theme="dark"] .bottom-note {
+    color: #9ba69d;
+}
+
+.app-shell[data-theme="dark"] h1,
+.app-shell[data-theme="dark"] .month-title h2,
+.app-shell[data-theme="dark"] .day-panel > h2 {
+    color: #e0e8e1;
+}
+
+.app-shell[data-theme="dark"] .primary-button {
+    background: #45664e;
+}
+
+.app-shell[data-theme="dark"] .primary-button:hover {
+    background: #52765b;
+}
+
+.app-shell[data-theme="dark"] .calendar-card {
+    border-color: #343e37;
+    background: #202723;
+    box-shadow: 0 8px 30px #0003;
+}
+
+.app-shell[data-theme="dark"] .view-switch {
+    border-color: #3a453e;
+    background: #1d2420;
+}
+
+.app-shell[data-theme="dark"] .view-switch button {
+    color: #aab5ac;
+}
+
+.app-shell[data-theme="dark"] .weekday-row {
+    background: #242c27;
+}
+
+.app-shell[data-theme="dark"] .day-cell {
+    border-color: #343e37;
+    background: #202723;
+}
+
+.app-shell[data-theme="dark"] .day-cell:hover {
+    background: #28312b;
+}
+
+.app-shell[data-theme="dark"] .day-cell.outside {
+    background: #1b221e;
+}
+
+.app-shell[data-theme="dark"] .day-cell.outside .day-number {
+    color: #66736a;
+}
+
+.app-shell[data-theme="dark"] .day-number {
+    color: #c2ccc4;
+}
+
+.app-shell[data-theme="dark"] .current-day .day-number {
+    color: #fff;
+    background: #45664e;
+}
+
+.app-shell[data-theme="dark"] .calendar-task {
+    color: #c3cdc5;
+    background: #303a33;
+}
+
+.app-shell[data-theme="dark"] .task-drag-handle {
+    color: #9ba99e;
+}
+
+.app-shell[data-theme="dark"] .calendar-task.is-done .task-label,
+.app-shell[data-theme="dark"] .completed-title {
+    color: #86938a;
+}
+
+.app-shell[data-theme="dark"] .calendar-task.is-overdue {
+    color: #e2a39a;
+    background: #402c2a;
+}
+
+.app-shell[data-theme="dark"] .more-tasks {
+    color: #aab5ac;
+}
+
+.app-shell[data-theme="dark"] .more-tasks:hover,
+.app-shell[data-theme="dark"] .card-actions button:hover,
+.app-shell[data-theme="dark"] .text-button:hover {
+    color: #b6d1bb;
+}
+
+.app-shell[data-theme="dark"] .loading-state {
+    color: #aab5ac;
+}
+
+.app-shell[data-theme="dark"] .overlay {
+    background: #080b09b8;
+}
+
+.app-shell[data-theme="dark"] .day-panel {
+    color: #dbe3dc;
+    background: #202723;
+}
+
+.app-shell[data-theme="dark"] .close-button {
+    border-color: #3a453e;
+    color: #c2cbc4;
+    background: #252d28;
+}
+
+.app-shell[data-theme="dark"] .panel-section-heading h3,
+.app-shell[data-theme="dark"] .form-title-row h3,
+.app-shell[data-theme="dark"] .empty-state strong {
+    color: #cbd6cd;
+}
+
+.app-shell[data-theme="dark"] .panel-section-heading > span {
+    color: #c0cec2;
+    background: #303c33;
+}
+
+.app-shell[data-theme="dark"] .occurrence-card {
+    border-color: #37423b;
+    background: #242c27;
+}
+
+.app-shell[data-theme="dark"] .occurrence-card.overdue-card {
+    border-color: #65423d;
+    background: #302522;
+}
+
+.app-shell[data-theme="dark"] .occurrence-title {
+    color: #d7e0d8;
+}
+
+.app-shell[data-theme="dark"] .overdue-card .occurrence-title {
+    color: #e2a39a;
+}
+
+.app-shell[data-theme="dark"] .occurrence-category,
+.app-shell[data-theme="dark"] .occurrence-notes,
+.app-shell[data-theme="dark"] .empty-state,
+.app-shell[data-theme="dark"] .skipped-row {
+    color: #a3aea5;
+}
+
+.app-shell[data-theme="dark"] .custom-check {
+    border-color: #59665c;
+    background: #202723;
+}
+
+.app-shell[data-theme="dark"] .card-actions {
+    border-color: #37423b;
+}
+
+.app-shell[data-theme="dark"] .card-actions button,
+.app-shell[data-theme="dark"] .text-button {
+    color: #aab5ac;
+}
+
+.app-shell[data-theme="dark"] .card-actions .delete-action {
+    color: #d28f86;
+}
+
+.app-shell[data-theme="dark"] .empty-icon {
+    color: #a2c0a7;
+    background: #2d3c31;
+}
+
+.app-shell[data-theme="dark"] .skipped-row {
+    border-color: #3a453e;
+}
+
+.app-shell[data-theme="dark"] .skipped-row button {
+    color: #b6d1bb;
+}
+
+.app-shell[data-theme="dark"] .field-label {
+    color: #bbc6bd;
+}
+
+.app-shell[data-theme="dark"] .field-label input,
+.app-shell[data-theme="dark"] .field-label textarea,
+.app-shell[data-theme="dark"] .field-label select,
+.app-shell[data-theme="dark"] .weekday-picker button,
+.app-shell[data-theme="dark"] .secondary-button {
+    border-color: #3b463f;
+    color: #d7e0d8;
+    background: #252d28;
+}
+
+.app-shell[data-theme="dark"] .field-label input::placeholder,
+.app-shell[data-theme="dark"] .field-label textarea::placeholder {
+    color: #87948a;
+}
+
+.app-shell[data-theme="dark"] .field-label input:focus,
+.app-shell[data-theme="dark"] .field-label textarea:focus,
+.app-shell[data-theme="dark"] .field-label select:focus {
+    border-color: #78977d;
+}
+
+.app-shell[data-theme="dark"] .optional-label {
+    color: #929e94;
+}
+
+.app-shell[data-theme="dark"] .weekday-picker button {
+    color: #aeb9b0;
+}
+
+.app-shell[data-theme="dark"] .weekday-picker button.selected {
+    border-color: #617b67;
+    color: #d0e1d2;
+    background: #303e33;
+}
+
+.app-shell[data-theme="dark"] .color-picker button {
+    border-color: #202723;
+}
+
+.app-shell[data-theme="dark"] .color-picker button.active {
+    box-shadow: 0 0 0 1.5px #aec5b1;
+}
+
+.app-shell[data-theme="dark"] .form-error,
+.app-shell[data-theme="dark"] .error-state {
+    color: #e2a39a;
+}
+
+.app-shell[data-theme="dark"] .global-error {
+    border-color: #68443e;
+    color: #f0b5ab;
+    background: #352522;
 }
