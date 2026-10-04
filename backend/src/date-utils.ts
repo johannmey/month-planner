@@ -6,6 +6,7 @@ export function isDateKey(value: string): boolean {
 }
 
 export function addDays(dateKey: string, amount: number): string {
+  // UTC arithmetic keeps date-only values stable across local daylight-saving changes.
   const [year, month, day] = dateKey.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day + amount));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;

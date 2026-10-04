@@ -4,3 +4,9 @@ packages:
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+auditConfig:
+  ignoreGhsas:
+    # The corresponding braces release is locally patched until upstream publishes a fix.
+    - GHSA-vfj7-8cjw-p6xm
+patchedDependencies:
+  braces@3.0.3: patches/braces@3.0.3.patch

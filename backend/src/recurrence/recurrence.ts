@@ -30,7 +30,9 @@ export function expandTaskDates(task: RecurringTask, from: string, to: string): 
     const shouldInclude =
       task.recurrenceType === 'daily' ||
       (task.recurrenceType === 'weekly' && (task.weekdays ?? []).includes(weekdayMondayFirst)) ||
+      // Keep the two-week cadence tied to the task's original start date.
       (task.recurrenceType === 'biweekly' && daysFromStart % 14 === 0) ||
+      // Clamp dates such as the 31st to the final day of shorter months.
       (task.recurrenceType === 'monthly' &&
         day === Math.min(task.dayOfMonth ?? day, new Date(Date.UTC(year, month, 0)).getUTCDate()));
     if (shouldInclude) dates.push(cursor);

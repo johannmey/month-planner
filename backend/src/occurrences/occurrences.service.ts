@@ -53,6 +53,7 @@ export class OccurrencesService {
         move.movedDate <= to &&
         expandTaskDates(task, move.occurrenceDate, move.occurrenceDate).includes(move.occurrenceDate)
       ) {
+        // Completion and skip records stay keyed to the scheduled date after an occurrence moves.
         candidates.push({ task, date: move.movedDate, occurrenceDate: move.occurrenceDate });
       }
     }

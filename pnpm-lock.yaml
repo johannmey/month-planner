@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  braces@3.0.3: 8d8b9d0676f20d9e3953238b9bd7d9231150900d1c9d622ae3ce9e7b5540a51c
+
 importers:
 
   .:
@@ -4639,7 +4642,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  braces@3.0.3:
+  braces@3.0.3(patch_hash=8d8b9d0676f20d9e3953238b9bd7d9231150900d1c9d622ae3ce9e7b5540a51c):
     dependencies:
       fill-range: 7.1.1
 
@@ -5782,7 +5785,7 @@ snapshots:
 
   micromatch@4.0.8:
     dependencies:
-      braces: 3.0.3
+      braces: 3.0.3(patch_hash=8d8b9d0676f20d9e3953238b9bd7d9231150900d1c9d622ae3ce9e7b5540a51c)
       picomatch: 2.3.2
 
   mime-db@1.52.0: {}
