@@ -31,7 +31,7 @@ Then open http://localhost:3003. The database is created at `backend/data/planne
 
 ## Tasks and recurrence
 
-Tasks can be one-off, daily, weekly on selected weekdays, every two weeks (anchored to the start date), or monthly on a chosen day. Monthly days 29–31 are clamped to the last day of shorter months. An optional end date limits a series. Editing a task updates its series; an individual occurrence can be completed, skipped or restored, or moved to another date. Drag tasks to move an occurrence or reorder the task list.
+Tasks can be one-off, daily, weekly on selected weekdays, every two weeks (anchored to the start date), or monthly on the first through fifth occurrence of a selected weekday (for example, the second Saturday). A fifth weekday is skipped in months where it does not occur. Existing monthly tasks are mapped from their first scheduled date to the corresponding weekday pattern. An optional end date limits a series. Editing a task updates its series; an individual occurrence can be completed, skipped or restored, or moved to another date. Drag tasks to move an occurrence or reorder the task list.
 
 ## Tests
 

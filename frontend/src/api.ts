@@ -16,6 +16,8 @@ export interface Task {
   endDate: string | null;
   weekdays: number[] | null;
   dayOfMonth: number | null;
+  weekOfMonth: number | null;
+  weekdayOfMonth: number | null;
 }
 
 export interface Occurrence {

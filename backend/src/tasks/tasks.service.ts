@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { isDateKey } from '../date-utils';
+import { getMonthlyRecurrencePattern } from '../recurrence/recurrence';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { Task } from './task.entity';
 
@@ -9,8 +10,11 @@ import { Task } from './task.entity';
 export class TasksService {
   constructor(@InjectRepository(Task) private readonly tasks: Repository<Task>) {}
 
-  findAll(): Promise<Task[]> {
-    return this.tasks.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
+  async findAll(): Promise<Task[]> {
+    const tasks = await this.tasks.find({ order: { sortOrder: 'ASC', createdAt: 'ASC' } });
+    return tasks.map((task) => task.recurrenceType === 'monthly'
+      ? { ...task, ...getMonthlyRecurrencePattern(task) }
+      : task);
   }
 
   async create(dto: CreateTaskDto): Promise<Task> {
@@ -27,6 +31,8 @@ export class TasksService {
       dayOfMonth: dto.dayOfMonth ?? null,
       endDate: dto.endDate ?? null,
       color: dto.color ?? null,
+      weekOfMonth: dto.weekOfMonth ?? null,
+      weekdayOfMonth: dto.weekdayOfMonth ?? null,
       sortOrder: (lastTask?.sortOrder ?? -1) + 1,
     }));
   }
@@ -62,6 +68,8 @@ export class TasksService {
     if (dto.notes !== undefined) task.notes = dto.notes?.trim() || null;
     if (dto.weekdays !== undefined) task.weekdays = dto.weekdays;
     if (dto.dayOfMonth !== undefined) task.dayOfMonth = dto.dayOfMonth;
+    if (dto.weekOfMonth !== undefined) task.weekOfMonth = dto.weekOfMonth;
+    if (dto.weekdayOfMonth !== undefined) task.weekdayOfMonth = dto.weekdayOfMonth;
     if (dto.endDate !== undefined) task.endDate = dto.endDate;
     return this.tasks.save(task);
   }
@@ -84,8 +92,15 @@ export class TasksService {
     if (task.recurrenceType === 'weekly' && (!task.weekdays || task.weekdays.length === 0)) {
       throw new BadRequestException('Choose at least one weekday for weekly tasks');
     }
-    if (task.recurrenceType === 'monthly' && (!task.dayOfMonth || task.dayOfMonth < 1 || task.dayOfMonth > 31)) {
-      throw new BadRequestException('Choose a day of the month from 1 to 31');
+    if (task.recurrenceType === 'monthly') {
+      const hasWeek = task.weekOfMonth != null;
+      const hasWeekday = task.weekdayOfMonth != null;
+      if (hasWeek !== hasWeekday) {
+        throw new BadRequestException('Choose both a week and a weekday for monthly tasks');
+      }
+      if (!hasWeek && (!task.dayOfMonth || task.dayOfMonth < 1 || task.dayOfMonth > 31)) {
+        throw new BadRequestException('Choose a week and weekday for monthly tasks');
+      }
     }
   }
 }

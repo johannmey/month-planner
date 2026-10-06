@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { RecurrenceType, Task, TaskInput } from '../api';
-import { taskColors, weekdayLabels } from '../planner/constants';
+import {
+  taskColors,
+  weekdayLabels,
+  weekdayFromDate,
+  weekOfMonthFromDate,
+} from '../planner/constants';
 
 interface TaskFormProps {
   date: string;
@@ -24,7 +29,13 @@ export function TaskForm({
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>(task?.recurrenceType ?? 'once');
   const [startDate, setStartDate] = useState(task?.startDate ?? date);
   const [endDate, setEndDate] = useState(task?.endDate ?? '');
-  const [dayOfMonth, setDayOfMonth] = useState(String(task?.dayOfMonth ?? Number(date.slice(-2))));
+  const patternDate = task?.startDate ?? date;
+  const [weekOfMonth, setWeekOfMonth] = useState(
+    task?.weekOfMonth ?? weekOfMonthFromDate(patternDate),
+  );
+  const [weekdayOfMonth, setWeekdayOfMonth] = useState(
+    task?.weekdayOfMonth ?? weekdayFromDate(patternDate),
+  );
   const [selectedDays, setSelectedDays] = useState<number[]>(task?.weekdays ?? []);
   const [error, setError] = useState('');
 
@@ -43,7 +54,9 @@ export function TaskForm({
       startDate,
       endDate: endDate || null,
       weekdays: recurrenceType === 'weekly' ? [...selectedDays].sort() : null,
-      dayOfMonth: recurrenceType === 'monthly' ? Number(dayOfMonth) : null,
+      dayOfMonth: null,
+      weekOfMonth: recurrenceType === 'monthly' ? weekOfMonth : null,
+      weekdayOfMonth: recurrenceType === 'monthly' ? weekdayOfMonth : null,
     });
   }
 
@@ -110,16 +123,32 @@ export function TaskForm({
         </div>
       )}
       {recurrenceType === 'monthly' && (
-        <label className="field-label">
-          Day of month
-          <input
-            type="number"
-            min="1"
-            max="31"
-            value={dayOfMonth}
-            onChange={(event) => setDayOfMonth(event.target.value)}
-          />
-        </label>
+        <div className="date-fields">
+          <label className="field-label">
+            Week of month
+            <select
+              value={weekOfMonth}
+              onChange={(event) => setWeekOfMonth(Number(event.target.value))}
+            >
+              <option value={1}>First</option>
+              <option value={2}>Second</option>
+              <option value={3}>Third</option>
+              <option value={4}>Fourth</option>
+              <option value={5}>Fifth</option>
+            </select>
+          </label>
+          <label className="field-label">
+            Day of week
+            <select
+              value={weekdayOfMonth}
+              onChange={(event) => setWeekdayOfMonth(Number(event.target.value))}
+            >
+              {weekdayLabels.map((label, index) => (
+                <option key={label} value={index + 1}>{label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       )}
       <div className="date-fields">
         <label className="field-label">

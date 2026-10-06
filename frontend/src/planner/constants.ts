@@ -8,3 +8,12 @@ export const themeStorageKey = 'month-planner-theme';
 export function todayDateKey(): string {
   return format(new Date(), 'yyyy-MM-dd');
 }
+
+export function weekOfMonthFromDate(dateKey: string): number {
+  return Math.floor((Number(dateKey.slice(-2)) - 1) / 7) + 1;
+}
+
+export function weekdayFromDate(dateKey: string): number {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return ((new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7) + 1;
+}

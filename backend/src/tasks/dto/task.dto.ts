@@ -57,6 +57,18 @@ export class CreateTaskDto {
   @Min(1)
   @Max(31)
   dayOfMonth?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  weekOfMonth?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  weekdayOfMonth?: number | null;
 }
 
 export class UpdateTaskDto {
@@ -104,6 +116,18 @@ export class UpdateTaskDto {
   @Min(1)
   @Max(31)
   dayOfMonth?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  weekOfMonth?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  weekdayOfMonth?: number | null;
 }
 
 export class ReorderTasksDto {

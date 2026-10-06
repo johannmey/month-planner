@@ -42,6 +42,12 @@ export class Task {
   @Column({ type: 'integer', nullable: true })
   dayOfMonth!: number | null;
 
+  @Column({ type: 'integer', nullable: true })
+  weekOfMonth!: number | null;
+
+  @Column({ type: 'integer', nullable: true })
+  weekdayOfMonth!: number | null;
+
   @Column({ type: 'integer', default: 0 })
   sortOrder!: number;
 

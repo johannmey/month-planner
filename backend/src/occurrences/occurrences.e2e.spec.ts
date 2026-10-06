@@ -94,6 +94,68 @@ describe('Planner API', () => {
     expect(remainingTasks.some(({ id }) => id === task.id)).toBe(false);
   }, 20_000);
 
+  it('persists monthly weekday patterns and maps legacy day-of-month tasks', async () => {
+    const pattern = {
+      weekOfMonth: 2,
+      weekdayOfMonth: 6,
+    };
+    const createMonthlyTask = (body: Record<string, unknown>) =>
+      fetch(`${baseUrl}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+    const monthlyResponse = await createMonthlyTask({
+      title: 'Second Saturday',
+      recurrenceType: 'monthly',
+      startDate: '2026-10-01',
+      ...pattern,
+    });
+    expect(monthlyResponse.status).toBe(201);
+    const monthlyTask = await monthlyResponse.json() as { id: string };
+
+    const legacyResponse = await createMonthlyTask({
+      title: 'Legacy monthly task',
+      recurrenceType: 'monthly',
+      startDate: '2026-09-20',
+      dayOfMonth: 10,
+    });
+    expect(legacyResponse.status).toBe(201);
+    const legacyTask = await legacyResponse.json() as { id: string };
+
+    const invalidPatternResponse = await createMonthlyTask({
+      title: 'Incomplete monthly pattern',
+      recurrenceType: 'monthly',
+      startDate: '2026-10-01',
+      weekOfMonth: 2,
+    });
+    expect(invalidPatternResponse.status).toBe(400);
+
+    const tasks = await fetch(`${baseUrl}/api/tasks`).then((response) => response.json()) as Array<{
+      id: string;
+      weekOfMonth: number | null;
+      weekdayOfMonth: number | null;
+    }>;
+    expect(tasks.find(({ id }) => id === monthlyTask.id))
+      .toMatchObject(pattern);
+    expect(tasks.find(({ id }) => id === legacyTask.id))
+      .toMatchObject(pattern);
+
+    const occurrences = await fetch(
+      `${baseUrl}/api/occurrences?from=2026-10-01&to=2026-12-31`,
+    ).then((response) => response.json()) as Array<{ taskId: string; date: string }>;
+    const expectedDates = ['2026-10-10', '2026-11-14', '2026-12-12'];
+    expect(occurrences.filter(({ taskId }) => taskId === monthlyTask.id).map(({ date }) => date))
+      .toEqual(expectedDates);
+    expect(occurrences.filter(({ taskId }) => taskId === legacyTask.id).map(({ date }) => date))
+      .toEqual(expectedDates);
+
+    const deletions = await Promise.all([monthlyTask.id, legacyTask.id].map((id) =>
+      fetch(`${baseUrl}/api/tasks/${id}`, { method: 'DELETE' })));
+    expect(deletions.map(({ status }) => status)).toEqual([200, 200]);
+  }, 20_000);
+
   it('persists task order and returns occurrences in that order', async () => {
     const date = localDateKey();
     const taskIds: string[] = [];

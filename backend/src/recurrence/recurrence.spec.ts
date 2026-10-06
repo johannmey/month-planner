@@ -1,4 +1,4 @@
-import { expandTaskDates } from './recurrence';
+import { expandTaskDates, getMonthlyRecurrencePattern } from './recurrence';
 
 describe('expandTaskDates', () => {
   it('expands selected weekdays Monday-first', () => {
@@ -21,14 +21,43 @@ describe('expandTaskDates', () => {
     ).toEqual(['2026-10-01', '2026-10-15', '2026-10-29']);
   });
 
-  it('clamps monthly day 31 to the final day of each month', () => {
+  it('repeats on the selected ordinal weekday each month', () => {
     expect(
       expandTaskDates(
-        { recurrenceType: 'monthly', startDate: '2026-01-31', dayOfMonth: 31 },
-        '2026-02-01',
-        '2026-04-30',
+        {
+          recurrenceType: 'monthly',
+          startDate: '2026-10-01',
+          weekOfMonth: 2,
+          weekdayOfMonth: 6,
+        },
+        '2026-10-01',
+        '2026-12-31',
       ),
-    ).toEqual(['2026-02-28', '2026-03-31', '2026-04-30']);
+    ).toEqual(['2026-10-10', '2026-11-14', '2026-12-12']);
+  });
+
+  it('skips months without the selected fifth weekday', () => {
+    expect(
+      expandTaskDates(
+        {
+          recurrenceType: 'monthly',
+          startDate: '2026-01-01',
+          weekOfMonth: 5,
+          weekdayOfMonth: 6,
+        },
+        '2026-02-01',
+        '2026-05-31',
+      ),
+    ).toEqual(['2026-05-30']);
+  });
+
+  it('infers a weekday pattern for existing day-of-month schedules', () => {
+    expect(
+      getMonthlyRecurrencePattern({
+        startDate: '2026-09-20',
+        dayOfMonth: 10,
+      }),
+    ).toEqual({ weekOfMonth: 2, weekdayOfMonth: 6 });
   });
 
   it('respects inclusive start and end dates', () => {
